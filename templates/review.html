@@ -1,7 +1,26 @@
-<form method="post">
-  <input type="text" name="name" placeholder="Your Name"><br>
-  <textarea name="comment" placeholder="Your comment..." required></textarea><br>
-  <input type="number" name="stars" min="0" max="5" required><br>
-  <label><input type="checkbox" name="anonymous"> Post as anonymous</label><br>
-  <button type="submit">Submit Review</button>
-</form>
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <title>Leave a Review</title>
+</head>
+<body>
+  <header><h1>Submit a Review</h1></header>
+  <div class="container">
+    <form method="POST">
+      <input type="text" name="name" placeholder="Your Name" required>
+      <select name="stars" required>
+        <option value="" disabled selected>Rate us</option>
+        <option value="5">★★★★★ (5)</option>
+        <option value="4">★★★★☆ (4)</option>
+        <option value="3">★★★☆☆ (3)</option>
+        <option value="2">★★☆☆☆ (2)</option>
+        <option value="1">★☆☆☆☆ (1)</option>
+      </select>
+      <textarea name="comment" placeholder="Your Review" rows="4" required></textarea>
+      <label><input type="checkbox" name="anonymous"> Submit anonymously</label>
+      <button type="submit">Submit Review</button>
+    </form>
+  </div>
+</body>
+</html>

@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, redirect, url_for, session
 from flask_mail import Mail, Message
+from werkzeug.security import generate_password_hash, check_password_hash
 import uuid, json, os, random
 from datetime import datetime
 from functools import wraps
@@ -11,17 +12,18 @@ USERS_FILE = 'users.json'
 REVIEWS_FILE = 'reviews.json'
 VERIFICATION_FILE = 'pending_verifications.json'
 
-# Read the email password from password.txt
+# Load email password
 with open('password.txt') as f:
     email_password = f.read().strip()
 
-# Email config (replace with your SpaceMail credentials)
+# Email configuration
 app.config['MAIL_SERVER'] = 'mail.spacemail.com'
 app.config['MAIL_PORT'] = 465
-app.config['MAIL_USE_SSL'] = True    # <- Use SSL
-app.config['MAIL_USE_TLS'] = False   # <- Turn off TLS
+app.config['MAIL_USE_SSL'] = True
+app.config['MAIL_USE_TLS'] = False
 app.config['MAIL_USERNAME'] = 'contact@rousehillhighschool.com'
 app.config['MAIL_PASSWORD'] = email_password
+app.config['MAIL_DEFAULT_SENDER'] = ('Rouse Hill High School', 'contact@rousehillhighschool.com')
 mail = Mail(app)
 
 # JSON helpers
@@ -40,7 +42,7 @@ def save_json(file, data):
     with open(file, 'w') as f:
         json.dump(data, f, indent=2)
 
-# Auth helpers
+# Auth decorator
 def login_required(f):
     @wraps(f)
     def decorated(*args, **kwargs):
@@ -64,60 +66,83 @@ def index():
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
     if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+        email = request.form['email'].strip().lower()
+        password = request.form['password'].strip()
+
         # if not email.endswith('@education.nsw.gov.au'):
-        #     return "Email must end with @education.nsw.gov.au"
-        
+        #     return render_template('signup.html', error="Email must end with @education.nsw.gov.au")
+
         users = load_json(USERS_FILE)
         if any(u['email'] == email for u in users):
-            return "Email already registered"
+            return render_template('signup.html', error="Email already registered.")
 
-        # Generate and email verification code
         code = str(random.randint(100000, 999999))
         pending = load_json(VERIFICATION_FILE)
-        pending.append({"email": email, "password": password, "code": code})
+        pending.append({
+            "email": email,
+            "password": password,
+            "code": code
+        })
         save_json(VERIFICATION_FILE, pending)
 
-        msg = Message("Your Verification Code",
-                      sender=app.config['MAIL_USERNAME'],
-                      recipients=[email])
-        msg.body = f"Your verification code is: {code}"
+        # Send verification email
+        msg = Message("Your Verification Code", recipients=[email])
+        msg.body = f"Your verification code for RouseHillHighSchool.com is: {code}"
+        msg.html = f"""
+        <p>Hello,</p>
+        <p>Your verification code for <strong>RouseHillHighSchool.com</strong> is: <strong>{code}</strong></p>
+        <p>Please enter this code to complete your signup.</p>
+        <p>Regards,<br>RouseHillHighSchool.com</p>
+        """
         mail.send(msg)
 
-        return redirect(url_for('verify_email', email=email))
+        session['verify_email'] = email
+        return redirect(url_for('verify_email'))
+
     return render_template('signup.html')
 
-@app.route('/verify/<email>', methods=['GET', 'POST'])
-def verify_email(email):
+@app.route('/verify', methods=['GET', 'POST'])
+def verify_email():
+    email = session.get('verify_email')
+    if not email:
+        return redirect(url_for('signup'))
+
     if request.method == 'POST':
-        code_input = request.form['code']
+        entered_code = request.form['code'].strip()
         pending = load_json(VERIFICATION_FILE)
-        entry = next((p for p in pending if p['email'] == email), None)
-        if entry and entry['code'] == code_input:
-            # Add to users
+        user_entry = next((p for p in pending if p['email'] == email and p['code'] == entered_code), None)
+
+        if user_entry:
             users = load_json(USERS_FILE)
-            users.append({"email": entry['email'], "password": entry['password']})
-            save_json(USERS_FILE, users)
-            # Remove from pending
+            if not any(u['email'] == email for u in users):
+                users.append({'email': email, 'password': user_entry['password']})
+                save_json(USERS_FILE, users)
+
+            # Remove verified entry from pending
             pending = [p for p in pending if p['email'] != email]
             save_json(VERIFICATION_FILE, pending)
+
+            session.pop('verify_email', None)
             return redirect(url_for('login'))
-        return "Invalid code"
+        else:
+            return render_template('verify.html', email=email, error="Incorrect verification code")
+
     return render_template('verify.html', email=email)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
-        email = request.form['email']
-        password = request.form['password']
+        email = request.form['email'].strip().lower()
+        password = request.form['password'].strip()
+
         users = load_json(USERS_FILE)
-        user = next((u for u in users if u['email'] == email and u['password'] == password), None)
-        if user:
+        user = next((u for u in users if u['email'] == email), None)
+        if user and user['password']:
             session['email'] = email
             return redirect(url_for('review'))
         else:
-            return "Invalid credentials"
+            return render_template('login.html', error="Invalid credentials")
+
     return render_template('login.html')
 
 @app.route('/logout')
@@ -129,9 +154,9 @@ def logout():
 @login_required
 def review():
     if request.method == 'POST':
-        name = request.form['name']
+        name = request.form['name'].strip()
         stars = int(request.form['stars'])
-        comment = request.form['comment']
+        comment = request.form['comment'].strip()
         anonymous = 'anonymous' in request.form
 
         review = {

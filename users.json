@@ -1,0 +1,10 @@
+[
+  {
+    "email": "contact@rousehillhighschool.com",
+    "password": "test"
+  },
+  {
+    "email": "oliverbaronoff@gmail.com",
+    "password": "scrypt:32768:8:1$7Hr7TuLxaCez1vLE$81d4faa21a0130ea70de1d3e4e168c597a3f8edeef588b374837254beade3de05c7ed66d4d57986e5b3eb826eca0fcb73e3a623ea0ce774825b4f27e2d52bb6d"
+  }
+]

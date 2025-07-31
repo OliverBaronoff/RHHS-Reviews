@@ -1,5 +1,25 @@
-<form method="post">
-  <input type="email" name="email" placeholder="Email" required><br>
-  <input type="password" name="password" placeholder="Password" required><br>
-  <button type="submit">Sign Up</button>
-</form>
+<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <title>Sign Up</title>
+</head>
+<body>
+  <h1>Sign Up</h1>
+  
+  {% if error %}
+    <p style="color: red; font-weight: bold;">{{ error }}</p>
+  {% endif %}
+
+  <form method="post">
+    <label>Email:</label><br>
+    <input type="email" name="email" required><br><br>
+
+    <label>Password:</label><br>
+    <input type="password" name="password" required><br><br>
+
+    <button type="submit">Sign Up</button>
+  </form>
+
+  <p>Already have an account? <a href="{{ url_for('login') }}">Log in</a></p>
+</body>
