@@ -11,12 +11,17 @@ USERS_FILE = 'users.json'
 REVIEWS_FILE = 'reviews.json'
 VERIFICATION_FILE = 'pending_verifications.json'
 
+# Read the email password from password.txt
+with open('password.txt') as f:
+    email_password = f.read().strip()
+
 # Email config (replace with your SpaceMail credentials)
-app.config['MAIL_SERVER'] = 'smtp.spacemail.io'
-app.config['MAIL_PORT'] = 587
-app.config['MAIL_USE_TLS'] = True
-app.config['MAIL_USERNAME'] = 'your@domain.com'
-app.config['MAIL_PASSWORD'] = 'your_spacemail_password'
+app.config['MAIL_SERVER'] = 'mail.spacemail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USE_SSL'] = True    # <- Use SSL
+app.config['MAIL_USE_TLS'] = False   # <- Turn off TLS
+app.config['MAIL_USERNAME'] = 'contact@rousehillhighschool.com'
+app.config['MAIL_PASSWORD'] = email_password
 mail = Mail(app)
 
 # JSON helpers
@@ -61,8 +66,8 @@ def signup():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        if not email.endswith('@education.nsw.gov.au'):
-            return "Email must end with @education.nsw.gov.au"
+        # if not email.endswith('@education.nsw.gov.au'):
+        #     return "Email must end with @education.nsw.gov.au"
         
         users = load_json(USERS_FILE)
         if any(u['email'] == email for u in users):
