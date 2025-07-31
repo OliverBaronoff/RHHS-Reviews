@@ -1,0 +1,11 @@
+<h2>All Reviews</h2>
+<a href="/?sort=newest">Newest</a> |
+<a href="/?sort=oldest">Oldest</a> |
+<a href="/?sort=stars">Top Rated</a>
+<hr>
+{% for r in reviews %}
+  <strong>{{ r.name }}</strong> ({{ r.stars }} stars)<br>
+  <em>{{ r.comment }}</em><br>
+  <small>Posted on {{ r.timestamp }}</small>
+  <hr>
+{% endfor %}
