@@ -69,9 +69,6 @@ def signup():
         email = request.form['email'].strip().lower()
         password = request.form['password'].strip()
 
-        # if not email.endswith('@education.nsw.gov.au'):
-        #     return render_template('signup.html', error="Email must end with @education.nsw.gov.au")
-
         users = load_json(USERS_FILE)
         if any(u['email'] == email for u in users):
             return render_template('signup.html', error="Email already registered.")
@@ -85,7 +82,6 @@ def signup():
         })
         save_json(VERIFICATION_FILE, pending)
 
-        # Send verification email
         msg = Message("Your Verification Code", recipients=[email])
         msg.body = f"Your verification code for RouseHillHighSchool.com is: {code}"
         msg.html = f"""
@@ -118,7 +114,6 @@ def verify_email():
                 users.append({'email': email, 'password': user_entry['password']})
                 save_json(USERS_FILE, users)
 
-            # Remove verified entry from pending
             pending = [p for p in pending if p['email'] != email]
             save_json(VERIFICATION_FILE, pending)
 
@@ -131,19 +126,60 @@ def verify_email():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    login_error = None
+    signup_error = None
+    active_tab = 'login'  # Default to login tab
+
     if request.method == 'POST':
+        action = request.form.get('action')
         email = request.form['email'].strip().lower()
         password = request.form['password'].strip()
 
-        users = load_json(USERS_FILE)
-        user = next((u for u in users if u['email'] == email), None)
-        if user and user['password']:
-            session['email'] = email
-            return redirect(url_for('review'))
-        else:
-            return render_template('login.html', error="Invalid credentials")
+        if action == 'login':
+            active_tab = 'login'
+            users = load_json(USERS_FILE)
+            user = next((u for u in users if u['email'] == email), None)
+            if user and check_password_hash(user['password'], password):
+                session['email'] = email
+                return redirect(url_for('review'))
+            else:
+                login_error = "Invalid login credentials."
 
-    return render_template('login.html')
+        elif action == 'signup':
+            active_tab = 'signup'
+            confirm_password = request.form['confirm_password'].strip()
+            if not email.endswith('@education.nsw.gov.au'):
+                signup_error = "Email must end with @education.nsw.gov.au."
+            elif password != confirm_password:
+                signup_error = "Passwords do not match."
+            else:
+                users = load_json(USERS_FILE)
+                if any(u['email'] == email for u in users):
+                    signup_error = "Email is already registered."
+                else:
+                    code = str(random.randint(100000, 999999))
+                    pending = load_json(VERIFICATION_FILE)
+                    pending.append({
+                        "email": email,
+                        "password": generate_password_hash(password),
+                        "code": code
+                    })
+                    save_json(VERIFICATION_FILE, pending)
+
+                    msg = Message("Your Verification Code", recipients=[email])
+                    msg.body = f"Your verification code is: {code}"
+                    msg.html = f"<p>Your verification code is: <strong>{code}</strong></p>"
+                    mail.send(msg)
+
+                    session['verify_email'] = email
+                    return redirect(url_for('verify_email'))
+
+    return render_template(
+        'login.html',
+        login_error=login_error,
+        signup_error=signup_error,
+        active_tab=active_tab
+    )
 
 @app.route('/logout')
 def logout():
